@@ -7,6 +7,7 @@ from django.dispatch import Signal
 from django.utils.encoding import python_2_unicode_compatible
 from django.utils import timezone
 from django.utils.translation import ugettext_lazy as _
+from django.contrib.postgres.fields import CITextField
 
 from .settings import (
     COUPON_TYPES,
@@ -67,7 +68,7 @@ class CouponManager(models.Manager):
 @python_2_unicode_compatible
 class Coupon(models.Model):
     value = models.IntegerField(_("Value"), help_text=_("Arbitrary coupon value"))
-    code = models.CharField(
+    code = CITextField(
         _("Code"), max_length=30, unique=True, blank=True,
         help_text=_("Leaving this field empty will generate a random code."))
     type = models.CharField(_("Type"), max_length=20, choices=COUPON_TYPES)
