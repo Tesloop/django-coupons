@@ -45,7 +45,7 @@ class CouponForm(forms.Form):
             # coupons with can be used only once can be used without tracking the user, otherwise there is no chance
             # of excluding an unknown user from multiple usages.
             raise forms.ValidationError(_(
-                "The server must provide an user to this form to allow you to use this code. Maybe you need to sign in?"
+                "Please sign in to use this coupon."
             ))
 
         if coupon.is_redeemed:
