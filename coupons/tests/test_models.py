@@ -36,6 +36,7 @@ class CouponTestCase(TestCase):
         coupon = Coupon(type='monetary', value=100)
         coupon.save()
         self.assertTrue(coupon.pk)
+        self.assertEqual(coupon.limit_per_user, 1)
 
     def test_create_coupon(self):
         coupon = Coupon.objects.create_coupon('monetary', 100)
@@ -49,7 +50,14 @@ class CouponTestCase(TestCase):
     def test_redeem(self):
         coupon = Coupon.objects.create_coupon('monetary', 100)
         coupon.redeem()
-        self.assertIsNotNone(coupon.redeemed_at)
+        self.assertIsNotNone(coupon.last_redeemed_at)
+        self.assertTrue(coupon.is_redeemed)
+
+    def test_last_redeemed_at(self):
+        coupon = Coupon.objects.create_coupon('monetary', 100)
+        self.assertFalse(coupon.last_redeemed_at)
+        coupon.redeem()
+        self.assertTrue(coupon.last_redeemed_at)
 
     def test_expired(self):
         coupon = Coupon.objects.create_coupon('monetary', 100)

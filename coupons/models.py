@@ -27,8 +27,10 @@ redeem_done = Signal(providing_args=["coupon"])
 
 
 class CouponManager(models.Manager):
-    def create_coupon(self, type, value, users=[], valid_until=None, prefix="", campaign=None, user_limit=None):
-        coupon = self.create(
+    def create_coupon(
+            self, type, value, users=[], valid_until=None, prefix="",
+            campaign=None, user_limit=None, limit_per_user=None):
+        coupon = Coupon(
             value=value,
             code=Coupon.generate_code(prefix),
             type=type,
@@ -37,6 +39,8 @@ class CouponManager(models.Manager):
         )
         if user_limit is not None:  # otherwise use default value of model
             coupon.user_limit = user_limit
+        if limit_per_user is not None: # otherwise use default value of model
+            coupon.limit_per_user = limit_per_user
         try:
             coupon.save()
         except IntegrityError:
@@ -56,10 +60,10 @@ class CouponManager(models.Manager):
         return coupons
 
     def used(self):
-        return self.exclude(users__redeemed_at__isnull=True)
+        return self.exclude(users__last_redeemed_at__isnull=True)
 
     def unused(self):
-        return self.filter(users__redeemed_at__isnull=True)
+        return self.filter(users__last_redeemed_at__isnull=True)
 
     def expired(self):
         return self.filter(valid_until__lt=timezone.now())
@@ -73,6 +77,10 @@ class Coupon(models.Model):
         help_text=_("Leaving this field empty will generate a random code."))
     type = models.CharField(_("Type"), max_length=20, choices=COUPON_TYPES)
     user_limit = models.PositiveIntegerField(_("User limit"), default=1)
+    limit_per_user = models.PositiveIntegerField(
+        _("Coupon redeem limit per User"),
+        default=1
+    )
     created_at = models.DateTimeField(_("Created at"), auto_now_add=True)
     valid_until = models.DateTimeField(
         _("Valid until"), blank=True, null=True,
@@ -100,16 +108,21 @@ class Coupon(models.Model):
     @property
     def is_redeemed(self):
         """ Returns true is a coupon is redeemed (completely for all users) otherwise returns false. """
-        return self.users.filter(
-            redeemed_at__isnull=False
-        ).count() >= self.user_limit and self.user_limit is not 0
+        fully_redeemed_users = [
+            user for user in self.users.select_related('coupon').filter(
+                last_redeemed_at__isnull=False
+            ) if user.fully_redeemed
+        ]
+        return len(fully_redeemed_users) >= self.user_limit and self.user_limit is not 0
 
     @property
-    def redeemed_at(self):
-        try:
-            return self.users.filter(redeemed_at__isnull=False).order_by('redeemed_at').last().redeemed_at
-        except self.users.through.DoesNotExist:
-            return None
+    def last_redeemed_at(self):
+        coupon_user = self.users.filter(
+            last_redeemed_at__isnull=False
+        ).order_by('last_redeemed_at').last()
+
+        if coupon_user:
+            return coupon_user.last_redeemed_at
 
     @classmethod
     def generate_code(cls, prefix="", segmented=SEGMENTED_CODES):
@@ -129,7 +142,8 @@ class Coupon(models.Model):
                 coupon_user.user = user
             except CouponUser.DoesNotExist:
                 coupon_user = CouponUser(coupon=self, user=user)
-        coupon_user.redeemed_at = timezone.now()
+        coupon_user.last_redeemed_at = timezone.now()
+        coupon_user.redeem_count += 1
         coupon_user.save()
         redeem_done.send(sender=self.__class__, coupon=self)
 
@@ -152,10 +166,15 @@ class Campaign(models.Model):
 class CouponUser(models.Model):
     coupon = models.ForeignKey(Coupon, related_name='users')
     user = models.ForeignKey(user_model, verbose_name=_("User"), null=True, blank=True)
-    redeemed_at = models.DateTimeField(_("Redeemed at"), blank=True, null=True)
+    last_redeemed_at = models.DateTimeField(_("Last redeemed at"), blank=True, null=True)
+    redeem_count = models.PositiveIntegerField(_("Redeem count"), default=0)
 
     class Meta:
         unique_together = (('coupon', 'user'),)
+
+    @property
+    def fully_redeemed(self):
+        return self.redeem_count >= self.coupon.limit_per_user
 
     def __str__(self):
         return str(self.user)

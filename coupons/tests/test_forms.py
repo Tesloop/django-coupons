@@ -69,7 +69,7 @@ class UnboundCouponFormTestCase(TestCase):
         CouponUser.objects.create(coupon=self.coupon)
         self.assertTrue(self.coupon.users.count(), 1)
         self.assertIsNone(self.coupon.users.first().user)
-        self.assertIsNone(self.coupon.users.first().redeemed_at)
+        self.assertIsNone(self.coupon.users.first().last_redeemed_at)
 
         form_data = {'code': self.coupon.code}
         form = CouponForm(data=form_data, user=self.user)
