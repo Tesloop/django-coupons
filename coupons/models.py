@@ -28,8 +28,8 @@ redeem_done = Signal(providing_args=["coupon"])
 
 class CouponManager(models.Manager):
     def create_coupon(
-            self, type, value, users=[], valid_until=None, prefix="",
-            campaign=None, user_limit=None, limit_per_user=None):
+            self, type, value, users=[], valid_from=None, valid_until=None,
+            prefix="", campaign=None, user_limit=None, limit_per_user=None):
         coupon = Coupon(
             value=value,
             code=Coupon.generate_code(prefix),
@@ -37,6 +37,8 @@ class CouponManager(models.Manager):
             valid_until=valid_until,
             campaign=campaign,
         )
+        if valid_from is not None:
+            coupon.valid_from = valid_from
         if user_limit is not None:  # otherwise use default value of model
             coupon.user_limit = user_limit
         if limit_per_user is not None: # otherwise use default value of model
@@ -53,10 +55,21 @@ class CouponManager(models.Manager):
                 CouponUser(user=user, coupon=coupon).save()
         return coupon
 
-    def create_coupons(self, quantity, type, value, valid_until=None, prefix="", campaign=None):
+    def create_coupons(self, quantity, type, value, valid_from=None,
+            valid_until=None, prefix="", campaign=None, limit_per_user=None):
         coupons = []
         for i in range(quantity):
-            coupons.append(self.create_coupon(type, value, None, valid_until, prefix, campaign))
+            coupons.append(
+                self.create_coupon(
+                    type=type,
+                    value=value,
+                    users=None,
+                    valid_from=valid_from,
+                    valid_until=valid_until,
+                    prefix=prefix,
+                    campaign=campaign
+                )
+            )
         return coupons
 
     def used(self):
@@ -82,6 +95,9 @@ class Coupon(models.Model):
         default=1
     )
     created_at = models.DateTimeField(_("Created at"), auto_now_add=True)
+    valid_from = models.DateTimeField(
+        _("Valid from"), default=timezone.now,
+        help_text=_("Defaults to start right away"))
     valid_until = models.DateTimeField(
         _("Valid until"), blank=True, null=True,
         help_text=_("Leave empty for coupons that never expire"))
