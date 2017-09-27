@@ -16,6 +16,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='coupon',
             name='valid_from',
-            field=models.DateTimeField(default=django.utils.timezone.now, help_text='Defaults to start right away', verbose_name='Valid until'),
+            field=models.DateTimeField(default=django.utils.timezone.now, help_text='Defaults to start right away', verbose_name='Valid from'),
         ),
     ]
