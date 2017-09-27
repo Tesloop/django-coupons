@@ -34,11 +34,12 @@ class CouponManager(models.Manager):
             value=value,
             code=Coupon.generate_code(prefix),
             type=type,
-            valid_until=valid_until,
             campaign=campaign,
         )
         if valid_from is not None:
             coupon.valid_from = valid_from
+        if valid_until is not None:
+            coupon.valid_until = valid_until
         if user_limit is not None:  # otherwise use default value of model
             coupon.user_limit = user_limit
         if limit_per_user is not None: # otherwise use default value of model
@@ -47,7 +48,17 @@ class CouponManager(models.Manager):
             coupon.save()
         except IntegrityError:
             # Try again with other code
-            coupon = Coupon.objects.create_coupon(type, value, users, valid_until, prefix, campaign)
+            coupon = Coupon.objects.create_coupon(
+                type,
+                value,
+                users,
+                valid_from,
+                valid_until,
+                prefix,
+                campaign,
+                user_limit,
+                limit_per_user
+            )
         if not isinstance(users, list):
             users = [users]
         for user in users:

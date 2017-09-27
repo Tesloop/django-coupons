@@ -50,7 +50,7 @@ MIDDLEWARE_CLASSES = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'tests.urls'
+#ROOT_URLCONF = 'tests.urls'
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'tests', 'static')
 
